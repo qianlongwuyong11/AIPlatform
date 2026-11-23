@@ -1,0 +1,253 @@
+# Stage 3: 企业级 Agent HTTP 服务 (Spring Boot)
+#
+# 使用统一的 BitGuideConfig 加载，在 Stage 2 基础上叠加：
+# Gateway 网关 + HTTP API + Redis 分布式 + Web 前端
+# Stage 3 特点：HTTP 服务，Agent 通过 etcd 动态加载
+
+# Agent 配置（初始 Agent，可通过 etcd 动态追加）
+agents:
+  # 场景1: 亲子教育顾问 - 问答型（即时响应模式+RAG+session管理+工具调用）
+  parenting_advisor:
+    id: parenting_advisor
+    name: 亲子教育顾问
+    description: 专业的亲子教育顾问，支持RAG知识库检索
+    modelRef: ollama
+    systemPrompt: |-
+      你是一位专业的亲子教育顾问，拥有丰富的儿童心理学和教育学知识。
+
+      你的职责：
+      - 提供科学的育儿建议
+      - 解答儿童发展相关问题
+      - 推荐合适的教育资源
+      - 设计适龄的家庭活动
+
+      注意事项：
+      - 建议要基于科学依据
+      - 必要时建议寻求专业帮助
+      - 对于健康问题，明确说明仅供参考
+    knowledgeBase: extensions/legal/knowledge
+    toolRefs:
+      - calculator
+      - datetime
+    mcpServers:
+      - name: parenting-tools
+        transport: stdio
+        command: java
+        args: ["mcp-servers/parenting-mcp-server/ParentingMcpServer.java"]
+        timeout: 30000
+    skillRefs:
+      - parenting-activity-advice
+    memory:
+      enabled: true
+      maxHistoryLength: 50
+      sessionTimeoutMs: 3600000
+
+  # 场景2: 股票助手 - 业务工具通过 MCP 动态加载
+  stock_assistant:
+    id: stock_assistant
+    name: 股票助手
+    description: A股市场分析助手，支持查询股票行情、分析板块热点、生成投资建议
+    modelRef: ollama
+    systemPrompt: |-
+      你是一位专业的A股市场分析助手，具备丰富的股票市场知识和数据分析能力。
+
+      你的职责：
+      - 查询和分析股票实时行情
+      - 分析市场整体走势和板块热点
+      - 搜索相关财经新闻和市场资讯
+      - 综合分析数据，提供投资建议
+
+      工作流程：
+      1. 首先获取当前日期和市场概览
+      2. 分析热门板块和资金流向
+      3. 搜索相关市场资讯
+      4. 综合分析并生成投资建议
+
+      注意事项：
+      - 分析要客观中立，基于数据说话
+      - 明确提示投资风险
+      - 不做具体的买卖推荐
+      - 所有分析仅供参考，不构成投资建议
+    toolRefs:
+      - web_search
+      - data_analyzer
+      - datetime
+    # 业务工具通过内联 MCP Server 动态加载（零代码部署）
+    mcpServers:
+      - name: stock
+        transport: stdio
+        command: java
+        args: ["mcp-servers/stock-mcp-server/StockMcpServer.java"]
+        timeout: 30000
+    memory:
+      enabled: true
+      maxHistoryLength: 50
+
+# 模型配置（共享）
+models:
+  ollama:
+    provider: ollama
+    apiKey: ollama
+    baseUrl: http://localhost:11434/v1
+    modelName: qwen2.5
+    temperature: 0.7
+    maxTokens: 2000
+
+# Etcd 动态配置
+etcd:
+  enabled: true
+  endpoints:
+    - "http://localhost:2379"
+  configPrefix: "/bitguide/config"
+  connectionTimeoutMs: 5000
+  requestTimeoutMs: 10000
+
+# MCP 全局配置（用于接入外部工具）
+mcp:
+  enabled: true
+  servers:
+    # Parenting Tools MCP Server - 亲子教育工具集（年龄计算+天气查询）
+    - name: parenting-tools
+      transport: stdio
+      command: java
+      args: ["mcp-servers/parenting-mcp-server/ParentingMcpServer.java"]
+      timeout: 30000
+    - name: legal-tools              # ← 新增
+      transport: stdio
+      command: java
+      args: ["extensions/legal/mcp-server/LegalMcpServer.java"]
+      timeout: 30000
+
+# RAG 配置
+rag:
+  enabled: true
+  vectorStore:
+    type: milvus
+    host: localhost
+    port: 19530
+    collectionPrefix: bitguide_
+
+  embedding:
+    provider: ollama
+    baseUrl: http://localhost:11434
+    modelName: nomic-embed-text
+    dimension: 768
+
+  splitter:
+    maxSegmentSize: 500
+    overlap: 50
+
+  retrieval:
+    topK: 5
+    scoreThreshold: 0.7
+
+# 知识库配置
+knowledgeBases:
+  parenting_docs:
+    id: parenting_docs
+    name: 亲子教育文档
+    description: 亲子教育相关知识，包括儿童发展、育儿技巧、沟通方法、情绪管理等
+    sources:
+      - type: file
+        path: ./knowledge/parenting_docs
+        extensions:
+          - .md
+          - .txt
+
+  tech_docs:
+    id: tech_docs
+    name: 技术文档
+    description: 技术架构和API文档
+    sources:
+      - type: file
+        path: ./knowledge/tech_docs
+        extensions:
+          - .md
+          - .txt
+
+# ==================== Gateway 配置 ====================
+gateway:
+  # 认证配置
+  auth:
+    enabled: true
+    # API Key映射 (token -> userId)
+    api-keys:
+      demo-token-001: user-001
+      demo-token-002: user-002
+      admin-token: admin-user
+      test-key: test-user
+
+  # 安全配置
+  security:
+    enabled: true
+    max-input-length: 1000  # 设置较小值便于演示
+    prompt-injection-detection: true
+    sensitive-words:
+      - "hack"
+      - "attack"
+      - "恶意"
+      - "攻击"
+
+  # 限流配置
+  rate-limit:
+    enabled: true
+    global-qps: 100
+    user-qps: 3  # 设置较低值便于演示限流效果
+    global-max-concurrent: 50
+
+  # 会话配置
+  session:
+    lane-max-concurrent: 1
+    lane-queue-capacity: 100
+    lane-task-timeout-ms: 60000
+
+  # 消息策略
+  message:
+    default-strategy: followup
+    collect-time-window-ms: 2000
+
+  # 缓存配置
+  cache:
+    enabled: false  # 演示模式禁用缓存
+    max-size: 1000
+    ttl-seconds: 300
+
+# ==================== HTTP Server 配置 ====================
+server:
+  port: 8080
+  host: 0.0.0.0
+
+# ==================== Redis 分布式配置 ====================
+redis:
+  enabled: true  # 设为 true 启用分布式模式
+  host: localhost
+  port: 6379
+  password: ""
+  database: 0
+
+  pool:
+    maxTotal: 100
+    maxIdle: 50
+    minIdle: 10
+    connectionTimeout: 5000
+    readTimeout: 10000
+
+  # Lane（车道）分布式锁配置
+  lane:
+    keyPrefix: "bitguide:lane:"
+    lockTimeoutMs: 60000
+
+  # 限流配置
+  rateLimit:
+    keyPrefix: "bitguide:ratelimit:"
+
+  # 会话配置
+  session:
+    keyPrefix: "bitguide:session:"
+    timeoutMs: 3600000  # 1小时
+
+# ==================== Skills 配置 ====================
+skills:
+  enabled: true
+  directory: skills
+  hotReload: true

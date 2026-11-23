@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "启动 Stage 2",
+      "request": "launch",
+      "mainClass": "com.bitguide.stage2.Stage2App",
+      "cwd": "${workspaceFolder}/bitguide-agent-platform-main",
+      "console": "integratedTerminal",
+      "vmArgs": "-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8"
+    },
+    {
+      "type": "java",
+      "name": "启动 Stage 3",
+      "request": "launch",
+      "mainClass": "com.bitguide.stage3.Stage3App",
+      "cwd": "${workspaceFolder}/bitguide-agent-platform-main",
+      "console": "integratedTerminal",
+      "vmArgs": "-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8"
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bitguide.ai/schemas/config.schema.json",
+  "title": "BitGuide Agent Platform Configuration",
+  "description": "JSON Schema for BitGuide Agent Platform dynamic configuration",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the configuration item"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the configuration item"
+    }
+  },
+  "definitions": {
+    "AgentConfig": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "modelRef",
+        "promptRef"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Agent unique identifier",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Agent display name",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string",
+          "description": "Agent description"
+        },
+        "modelRef": {
+          "type": "string",
+          "description": "Reference to model configuration"
+        },
+        "promptRef": {
+          "type": "string",
+          "description": "Reference to prompt configuration"
+        },
+        "toolRefs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of tool references"
+        },
+        "knowledgeBase": {
+          "type": "string",
+          "description": "Reference to knowledge base configuration"
+        },
+        "mcpServerRefs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of MCP server references for external tools"
+        },
+        "memory": {
+          "$ref": "#/definitions/MemoryConfig"
+        }
+      }
+    },
+    "MemoryConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "maxHistoryLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 50
+        },
+        "sessionTimeoutMs": {
+          "type": "integer",
+          "minimum": 60000,
+          "default": 3600000
+        },
+        "compressionThreshold": {
+          "type": "integer",
+          "minimum": 10,
+          "default": 30
+        }
+      }
+    },
+    "ModelConfig": {
+      "type": "object",
+      "required": [
+        "provider"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": [
+            "openai",
+            "ollama",
+            "zhipu",
+            "azure",
+            "anthropic"
+          ]
+        },
+        "apiKey": {
+          "type": "string"
+        },
+        "baseUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "modelName": {
+          "type": "string"
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 0.7
+        },
+        "maxTokens": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 2000
+        }
+      }
+    },
+    "PromptConfig": {
+      "type": "object",
+      "required": [
+        "systemPrompt"
+      ],
+      "properties": {
+        "systemPrompt": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "KnowledgeBaseConfig": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SourceConfig"
+          }
+        }
+      }
+    },
+    "SourceConfig": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "file",
+            "url"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "urls": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      }
+    }
+  }
+}

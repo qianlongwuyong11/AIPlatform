@@ -1,0 +1,89 @@
+# Stage 2: 多 Agent CLI + etcd 动态配置
+#
+# 使用统一的 BitGuideConfig 加载，配置驱动 + etcd 动态管理
+# Stage 2 特点：多 Agent CLI，不支持 Gateway/HTTP/Redis 分布式
+
+# Agent 配置（静态定义，可通过 etcd 动态追加）
+
+# 模型配置（共享）
+models:
+  ollama:
+    provider: ollama
+    apiKey: ollama
+    baseUrl: http://localhost:11434/v1
+    modelName: qwen2.5
+    temperature: 0.7
+    maxTokens: 2000
+
+# Etcd 动态配置
+etcd:
+  enabled: true
+  endpoints:
+    - "http://localhost:2379"
+  configPrefix: "/bitguide/config"
+  connectionTimeoutMs: 5000
+  requestTimeoutMs: 10000
+
+# MCP 全局配置（用于接入外部工具）
+mcp:
+  enabled: true
+  servers:
+    # Parenting Tools MCP Server - 亲子教育工具集（年龄计算+天气查询）
+    - name: parenting-tools
+      transport: stdio
+      command: java
+      args: ["mcp-servers/parenting-mcp-server/ParentingMcpServer.java"]
+      timeout: 30000
+
+# RAG 配置
+rag:
+  enabled: true
+  vectorStore:
+    type: milvus
+    host: localhost
+    port: 19530
+    collectionPrefix: bitguide_
+
+  embedding:
+    provider: ollama
+    baseUrl: http://localhost:11434
+    modelName: nomic-embed-text
+    dimension: 768
+
+  splitter:
+    maxSegmentSize: 500
+    overlap: 50
+
+  retrieval:
+    topK: 5
+    scoreThreshold: 0.7
+
+# 知识库配置
+knowledgeBases:
+  parenting_docs:
+    id: parenting_docs
+    name: 亲子教育文档
+    description: 亲子教育相关知识，包括儿童发展、育儿技巧、沟通方法、情绪管理等
+    sources:
+      - type: file
+        path: ./knowledge/parenting_docs
+        extensions:
+          - .md
+          - .txt
+
+  tech_docs:
+    id: tech_docs
+    name: 技术文档
+    description: 技术架构和API文档
+    sources:
+      - type: file
+        path: ./knowledge/tech_docs
+        extensions:
+          - .md
+          - .txt
+
+# Skills 配置
+skills:
+  enabled: true
+  directory: skills
+  hotReload: true

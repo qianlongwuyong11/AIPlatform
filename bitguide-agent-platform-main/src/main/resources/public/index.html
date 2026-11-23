@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BitGuide Agent Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            opacity: 0.8;
+            font-size: 14px;
+        }
+        
+        .config-bar {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .config-bar label {
+            font-size: 14px;
+            color: #495057;
+        }
+        
+        .config-bar select {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            min-width: 150px;
+        }
+        
+        .status {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #6c757d;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+        }
+        
+        .status-dot.error {
+            background: #dc3545;
+        }
+        
+        .chat-container {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .message.user {
+            align-items: flex-end;
+        }
+        
+        .message.assistant {
+            align-items: flex-start;
+        }
+        
+        .message-bubble {
+            max-width: 70%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .message.assistant .message-bubble {
+            background: white;
+            color: #333;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .message-time {
+            font-size: 11px;
+            color: #adb5bd;
+            margin-top: 5px;
+        }
+        
+        .typing-indicator {
+            display: none;
+            padding: 12px 18px;
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .typing-indicator.active {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+        
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: typing 1s infinite;
+        }
+        
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes typing {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1); }
+        }
+        
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .input-wrapper textarea {
+            flex: 1;
+            padding: 12px 18px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        
+        .input-wrapper textarea:focus {
+            border-color: #667eea;
+        }
+        
+        .input-wrapper button {
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .input-wrapper button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .input-wrapper button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .actions button {
+            padding: 8px 15px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 15px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #6c757d;
+            transition: all 0.2s;
+        }
+        
+        .actions button:hover {
+            background: #e9ecef;
+            color: #495057;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin: 10px 20px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 BitGuide Agent Platform</h1>
+            <p>企业级智能体服务平台</p>
+        </div>
+        
+        <div class="config-bar">
+            <label>选择 Agent:</label>
+            <select id="agentSelect">
+                <option value="">加载中...</option>
+            </select>
+            <div class="status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">已连接</span>
+            </div>
+        </div>
+        
+        <div class="chat-container" id="chatContainer">
+            <div class="message assistant">
+                <div class="message-bubble">
+                    👋 您好！我是 BitGuide 智能助手。请选择一个 Agent 开始对话。
+                </div>
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <div class="input-wrapper">
+                <textarea id="messageInput" placeholder="输入消息..." rows="1"></textarea>
+                <button id="sendBtn" onclick="sendMessage()">发送</button>
+            </div>
+            <div class="actions">
+                <button onclick="clearSession()">🗑️ 清除会话</button>
+                <button onclick="loadAgents()">🔄 刷新 Agent</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '';
+        let sessionId = 'session-' + Math.random().toString(36).substr(2, 9);
+        let currentAgent = '';
+        let isLoading = false;
+        
+        // 页面加载时获取 Agent 列表
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAgents();
+            checkHealth();
+        });
+        
+        // 回车发送
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Agent 选择变化
+        document.getElementById('agentSelect').addEventListener('change', (e) => {
+            currentAgent = e.target.value;
+            if (currentAgent) {
+                const select = e.target;
+                const agentName = select.options[select.selectedIndex].textContent;
+                addMessage('assistant', `🔄 已切换到: ${agentName}`);
+            }
+        });
+        
+        // 加载 Agent 列表
+        async function loadAgents() {
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/agents`);
+                const result = await response.json();
+                
+                const select = document.getElementById('agentSelect');
+                select.innerHTML = '';
+                
+                if (result.data && result.data.length > 0) {
+                    result.data.forEach(agent => {
+                        const option = document.createElement('option');
+                        option.value = agent.id;
+                        option.textContent = `${agent.name} - ${agent.description || agent.id}`;
+                        select.appendChild(option);
+                    });
+                    currentAgent = result.data[0].id;
+                } else {
+                    select.innerHTML = '<option value="">暂无可用 Agent</option>';
+                }
+            } catch (error) {
+                console.error('加载 Agent 失败:', error);
+                document.getElementById('agentSelect').innerHTML = '<option value="">加载失败</option>';
+            }
+        }
+        
+        // 健康检查
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+                
+                if (data.status === 'UP') {
+                    dot.classList.remove('error');
+                    text.textContent = '已连接';
+                } else {
+                    dot.classList.add('error');
+                    text.textContent = '服务异常';
+                }
+            } catch (error) {
+                document.getElementById('statusDot').classList.add('error');
+                document.getElementById('statusText').textContent = '连接失败';
+            }
+        }
+        
+        // 发送消息
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            if (!currentAgent) {
+                alert('请先选择一个 Agent');
+                return;
+            }
+            
+            if (isLoading) return;
+            
+            // 显示用户消息
+            addMessage('user', message);
+            input.value = '';
+            
+            // 显示加载状态
+            isLoading = true;
+            document.getElementById('sendBtn').disabled = true;
+            showTyping();
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sessionId: sessionId,
+                        agentId: currentAgent,
+                        message: message
+                    })
+                });
+                
+                const result = await response.json();
+                hideTyping();
+                
+                if (result.data && result.data.success) {
+                    addMessage('assistant', result.data.response);
+                } else {
+                    addMessage('assistant', '❌ 错误: ' + (result.message || '未知错误'));
+                }
+            } catch (error) {
+                hideTyping();
+                addMessage('assistant', '❌ 请求失败: ' + error.message);
+            } finally {
+                isLoading = false;
+                document.getElementById('sendBtn').disabled = false;
+            }
+        }
+        
+        // 添加消息
+        function addMessage(role, content) {
+            const container = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            
+            messageDiv.innerHTML = `
+                <div class="message-bubble">${escapeHtml(content)}</div>
+                <div class="message-time">${time}</div>
+            `;
+            
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // 显示输入中状态
+        function showTyping() {
+            const container = document.getElementById('chatContainer');
+            const typingDiv = document.createElement('div');
+            typingDiv.id = 'typingIndicator';
+            typingDiv.className = 'message assistant';
+            typingDiv.innerHTML = `
+                <div class="typing-indicator active">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            `;
+            container.appendChild(typingDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // 隐藏输入中状态
+        function hideTyping() {
+            const typing = document.getElementById('typingIndicator');
+            if (typing) typing.remove();
+        }
+        
+        // 清除会话
+        async function clearSession() {
+            try {
+                await fetch(`${API_BASE}/api/v1/sessions/${sessionId}`, {
+                    method: 'DELETE'
+                });
+                
+                // 生成新 sessionId
+                sessionId = 'session-' + Math.random().toString(36).substr(2, 9);
+                
+                // 清空聊天记录
+                const container = document.getElementById('chatContainer');
+                container.innerHTML = `
+                    <div class="message assistant">
+                        <div class="message-bubble">
+                            ✅ 会话已清除，开始新对话吧！
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                alert('清除会话失败: ' + error.message);
+            }
+        }
+        
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/\n/g, '<br>');
+        }
+    </script>
+</body>
+</html>

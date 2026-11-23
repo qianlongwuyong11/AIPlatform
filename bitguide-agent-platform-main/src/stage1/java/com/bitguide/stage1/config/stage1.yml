@@ -1,0 +1,82 @@
+# Stage 1: 亲子教育顾问配置
+# 
+# 这是一个简化的配置文件，只包含必要的配置字段，
+# 适合初学者理解和学习 Agent 开发。
+
+# Agent 配置
+agent:
+  id: parenting_advisor
+  name: 亲子教育顾问
+  knowledgeBase: parenting_docs
+  systemPrompt: |-
+    你是一位专业的亲子教育顾问，拥有丰富的儿童心理学和教育学知识。
+    
+    你的职责：
+    - 提供科学的育儿建议
+    - 解答儿童发展相关问题
+    - 推荐合适的教育资源
+    - 设计适龄的家庭活动
+    
+    注意事项：
+    - 建议要基于科学依据
+    - 必要时建议寻求专业帮助
+    - 对于健康问题，明确说明仅供参考
+  tools:
+    - calculator
+    - datetime
+
+# 模型配置
+model:
+  provider: ollama
+  apiKey: ollama
+  baseUrl: http://localhost:11434/v1
+  modelName: qwen2.5
+  temperature: 0.7
+  maxTokens: 2000
+
+# 记忆配置
+memory:
+  maxHistoryLength: 50
+
+# RAG 配置（可选，需要 Milvus 和 Embedding 服务）
+rag:
+  enabled: true
+  vectorStore:
+    type: milvus
+    host: localhost
+    port: 19530
+    collectionPrefix: bitguide_
+  embedding:
+    provider: ollama
+    baseUrl: http://localhost:11434
+    modelName: nomic-embed-text
+    dimension: 768
+  splitter:
+    maxSegmentSize: 500
+    overlap: 50
+  retrieval:
+    topK: 5
+    scoreThreshold: 0.5
+
+# MCP 配置（用于接入外部工具）
+mcp:
+  enabled: true
+  servers:
+    # Parenting Tools MCP Server - 亲子教育工具集（年龄计算+天气查询）
+    - name: parenting-tools
+      transport: stdio
+      command: java
+      args: ["mcp-servers/parenting-mcp-server/ParentingMcpServer.java"]
+      timeout: 30000
+    - name: legal-tools              # ← 新增
+      transport: stdio
+      command: java
+      args: ["extensions/legal/mcp-server/LegalMcpServer.java"]
+      timeout: 30000
+
+# Skills 配置（声明式技能，动态加载）
+skills:
+  enabled: true
+  directory: skills
+  hotReload: true
+  # enabledSkills: []  # 为空则加载全部

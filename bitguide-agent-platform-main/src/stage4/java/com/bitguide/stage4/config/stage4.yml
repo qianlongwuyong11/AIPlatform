@@ -1,0 +1,101 @@
+# Stage 4: Agent 高级能力（工作流引擎）
+#
+# 在 Stage 3 基础上增加：工作流编排、多 Agent 协作、长任务管理
+# CLI 模式
+
+# Agent 配置
+agents:
+  parenting_advisor:
+    id: parenting_advisor
+    name: 亲子教育顾问
+    description: 专业的亲子教育顾问
+    modelRef: ollama
+    systemPrompt: |-
+      你是一位专业的亲子教育顾问，拥有丰富的儿童心理学和教育学知识。
+      请根据用户的问题给出专业、温暖的建议。
+    toolRefs:
+      - calculator
+      - datetime
+    memory:
+      enabled: true
+      maxHistoryLength: 50
+  tech_helper:                          # ← 新增开始
+    id: tech_helper
+    name: 技术助手
+    description: 回答技术问题
+    modelRef: ollama
+    systemPrompt: "你是一个技术助手，用简洁的方式回答技术问题。"
+    toolRefs:
+      - calculator
+    memory:
+      enabled: true
+      maxHistoryLength: 20              # ← 新增结束
+  content_editor: # ← 新增
+    id: content_editor
+    name: 内容编辑
+    description: 审阅和优化育儿建议
+    modelRef: ollama
+    systemPrompt: "你是一位资深育儿内容编辑。你会收到一份育儿建议的初稿，请从以下三个方面进行优化后输出完整内容：1. 补充专业依据（如儿童心理学原理）；2. 整理为清晰的要点列表；3. 语言更加温暖、富有同理心。"
+    memory:
+      enabled: false
+
+# 模型配置
+models:
+  ollama:
+    provider: ollama
+    apiKey: ollama
+    baseUrl: http://localhost:11434/v1
+    modelName: qwen2.5
+    temperature: 0.7
+    maxTokens: 2000
+
+# Etcd 动态配置（Stage 4 可选）
+etcd:
+  enabled: false
+  endpoints:
+    - "http://localhost:2379"
+  configPrefix: "/bitguide/config"
+  connectionTimeoutMs: 5000
+  requestTimeoutMs: 10000
+
+# Gateway 配置（简化）
+gateway:
+  auth:
+    enabled: false
+  security:
+    enabled: true
+    max-input-length: 1000
+  rate-limit:
+    enabled: false
+  session:
+    lane-max-concurrent: 1
+    lane-queue-capacity: 100
+    lane-task-timeout-ms: 60000
+  message:
+    default-strategy: followup
+  cache:
+    enabled: false
+
+# Redis（Checkpoint 持久化需要）
+redis:
+  enabled: true
+  host: localhost
+  port: 6379
+  password: ""
+  database: 0
+
+  pool:
+    maxTotal: 100
+    maxIdle: 50
+    minIdle: 10
+    connectionTimeout: 5000
+    readTimeout: 10000
+
+  lane:
+    keyPrefix: "bitguide:lane:"
+    lockTimeoutMs: 60000
+  rateLimit:
+    keyPrefix: "bitguide:ratelimit:"
+  session:
+    keyPrefix: "bitguide:session:"
+    timeoutMs: 3600000

@@ -1,0 +1,198 @@
+services:
+  # Milvus 内部使用的 Etcd
+  milvus-etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: bitguide-milvus-etcd
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - milvus_etcd_data:/etcd
+    command: >-
+      etcd 
+      -name etcd0 
+      -data-dir /etcd 
+      -listen-client-urls http://0.0.0.0:2379 
+      -advertise-client-urls http://milvus-etcd:2379 
+      -listen-peer-urls http://0.0.0.0:2380 
+      -initial-advertise-peer-urls http://milvus-etcd:2380 
+      -initial-cluster etcd0=http://milvus-etcd:2380
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - bitguide-network
+
+  # Milvus 向量数据库
+  milvus:
+    image: milvusdb/milvus:v2.3.3
+    container_name: bitguide-milvus
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      # 教学环境使用本地文件存储，避免依赖外部 S3/MinIO 服务
+      COMMON_STORAGETYPE: local
+    volumes:
+      - milvus_data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    depends_on:
+      - milvus-etcd
+    networks:
+      - bitguide-network
+
+  # # Redis 缓存
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: bitguide-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   command: redis-server --appendonly yes
+  #   networks:
+  #     - bitguide-network
+
+  # Redis Cluster（三个主分片，初始化命令见同目录实验方案）
+  redis-node-1:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --appendonly yes
+    ports:
+      - '127.0.0.1:6379:6379'
+    volumes:
+      - redis_cluster_1:/data
+    networks:
+      - bitguide-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  redis-node-2:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --appendonly yes
+    volumes:
+      - redis_cluster_2:/data
+    networks:
+      - bitguide-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  redis-node-3:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --appendonly yes
+    volumes:
+      - redis_cluster_3:/data
+    networks:
+      - bitguide-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  # BitGuide 配置中心 Etcd
+  bitguide-etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: bitguide-config-etcd
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    volumes:
+      - bitguide_etcd_data:/etcd-data
+    command: >-
+      etcd
+      -name bitguide-config
+      -data-dir /etcd-data
+      -listen-client-urls http://0.0.0.0:2379
+      -advertise-client-urls http://bitguide-etcd:2379,http://localhost:2379
+      -listen-peer-urls http://0.0.0.0:2380
+      -initial-advertise-peer-urls http://bitguide-etcd:2380
+      -initial-cluster bitguide-config=http://bitguide-etcd:2380
+      -initial-cluster-token bitguide-config-token
+      -initial-cluster-state new
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - bitguide-network
+
+  # ==================== 监控服务 ====================
+
+  # Prometheus 指标采集
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: bitguide-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+    networks:
+      - bitguide-network
+    # extra_hosts 使容器能通过 host.docker.internal 访问宿主机服务（Java/Go 进程）
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Grafana 可视化面板
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: bitguide-grafana
+    ports:
+      - "3100:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - bitguide-network
+
+volumes:
+  milvus_etcd_data:
+  milvus_data:
+  redis_cluster_1:
+  redis_cluster_2:
+  redis_cluster_3:
+  redis_data:
+  bitguide_etcd_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  bitguide-network:
+    driver: bridge
+    # 显式指定小网段，避免 Docker 默认地址池被其他教学容器网络耗尽
+    ipam:
+      config:
+        - subnet: ${BITGUIDE_SUBNET:-172.16.253.0/24}

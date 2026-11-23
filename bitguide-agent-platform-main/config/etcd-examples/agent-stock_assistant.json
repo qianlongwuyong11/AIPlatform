@@ -1,0 +1,25 @@
+{
+  "id": "stock_assistant",
+  "name": "股票助手",
+  "description": "A股市场分析助手，支持查询股票行情、分析板块热点、生成投资建议",
+  "modelRef": "ollama",
+  "systemPrompt": "你是一位专业的A股市场分析助手，具备丰富的股票市场知识和数据分析能力。\n\n你的职责：\n- 查询和分析股票实时行情\n- 分析市场整体走势和板块热点\n- 搜索相关财经新闻和市场资讯\n- 综合分析数据，提供投资建议\n\n工作流程：\n1. 首先获取当前日期和市场概览\n2. 分析热门板块和资金流向\n3. 搜索相关市场资讯\n4. 综合分析并生成投资建议\n\n注意事项：\n- 分析要客观中立，基于数据说话\n- 明确提示投资风险\n- 不做具体的买卖推荐\n- 所有分析仅供参考，不构成投资建议",
+  "toolRefs": [
+    "web_search",
+    "data_analyzer",
+    "datetime"
+  ],
+  "mcpServers": [
+    {
+      "name": "stock",
+      "transport": "stdio",
+      "command": "java",
+      "args": ["mcp-servers/stock-mcp-server/StockMcpServer.java"],
+      "timeout": 30000
+    }
+  ],
+  "memory": {
+    "enabled": true,
+    "maxHistoryLength": 50
+  }
+}

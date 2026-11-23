@@ -1,0 +1,32 @@
+# Prometheus 配置文件
+# 用于监控 BitGuide Agent Platform (Java / Go)
+#
+# 使用方式:
+#   cd docker && docker compose up -d prometheus grafana
+#
+# 访问:
+#   Prometheus:  http://localhost:9090
+#   Grafana:     http://localhost:3100 (默认账号 admin/admin)
+
+global:
+  scrape_interval: 15s       # 采集间隔
+  evaluation_interval: 15s   # 规则评估间隔
+
+scrape_configs:
+  # BitGuide Java 应用 (Stage 3)
+  - job_name: 'bitguide-java'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+        labels:
+          application: 'bitguide-java'
+          env: 'demo'
+
+  # BitGuide Go 应用 (Stage 3)
+  - job_name: 'bitguide-go'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['host.docker.internal:8081']
+        labels:
+          application: 'bitguide-go'
+          env: 'demo'
